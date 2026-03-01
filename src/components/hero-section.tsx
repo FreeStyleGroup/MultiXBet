@@ -1,13 +1,24 @@
 "use client";
 
-import { AnimatedShaderBackground } from "@/components/animated-shader-background";
+import dynamic from "next/dynamic";
 import { ExpressCard } from "@/components/express-card";
+import { ErrorBoundary } from "@/components/error-boundary";
+
+const AnimatedShaderBackground = dynamic(
+  () =>
+    import("@/components/animated-shader-background").then(
+      (mod) => mod.AnimatedShaderBackground
+    ),
+  { ssr: false }
+);
 
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden rounded-2xl min-h-[520px]">
       {/* Shader background */}
-      <AnimatedShaderBackground className="rounded-2xl" />
+      <ErrorBoundary fallback={null}>
+        <AnimatedShaderBackground className="rounded-2xl" />
+      </ErrorBoundary>
 
       {/* Dark overlay for readability */}
       <div className="absolute inset-0 bg-black/40 z-[1] rounded-2xl" />
