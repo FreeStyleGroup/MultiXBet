@@ -2,7 +2,6 @@
 
 import { memo, useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { animate } from "motion/react";
 
 interface GlowingEffectProps {
   blur?: number;
@@ -85,13 +84,18 @@ const GlowingEffect = memo(
           const angleDiff = ((targetAngle - currentAngle + 180) % 360) - 180;
           const newAngle = currentAngle + angleDiff;
 
-          animate(currentAngle, newAngle, {
-            duration: movementDuration,
-            ease: [0.16, 1, 0.3, 1],
-            onUpdate: (value) => {
-              element.style.setProperty("--start", String(value));
-            },
-          });
+          const startTime = performance.now();
+          const duration = movementDuration * 1000;
+          const from = currentAngle;
+          const to = newAngle;
+          const step = (now: number) => {
+            const t = Math.min((now - startTime) / duration, 1);
+            const eased = 1 - Math.pow(1 - t, 3);
+            const value = from + (to - from) * eased;
+            element.style.setProperty("--start", String(value));
+            if (t < 1) requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
         });
       },
       [inactiveZone, proximity, movementDuration]
