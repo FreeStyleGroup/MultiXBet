@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MultiXBet — Football Predictions</title>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f11;
+      --card-bg: #1a1a1f;
+      --card-border: rgba(255,255,255,0.08);
+      --text: #f0f0f5;
+      --text-muted: #8a8a9a;
+      --emerald: #10b981;
+      --emerald-dim: rgba(16,185,129,0.15);
+      --emerald-border: rgba(16,185,129,0.3);
+      --yellow: #eab308;
+      --yellow-dim: rgba(234,179,8,0.15);
+      --yellow-border: rgba(234,179,8,0.3);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.15);
+      --red-border: rgba(239,68,68,0.3);
+      --radius: 12px;
+      --glow-pink: #dd7bbb;
+      --glow-gold: #d79f1e;
+      --glow-green: #5a922c;
+      --glow-blue: #4c7894;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== Header ===== */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(15,15,17,0.85);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--emerald);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #fff;
+    }
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    /* ===== Container ===== */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 1rem;
+    }
+
+    /* ===== Hero Section ===== */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      min-height: 540px;
+      margin-bottom: 2rem;
+    }
+    #shader-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      border-radius: 16px;
+    }
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1;
+      border-radius: 16px;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 10;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 540px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .hero-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .hero-subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 24px;
+    }
+
+    /* ===== Glowing Card ===== */
+    .glow-card {
+      position: relative;
+      border-radius: var(--radius);
+    }
+    .glow-card::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: calc(var(--radius) + 2px);
+      background: conic-gradient(
+        from var(--glow-angle, 0deg) at 50% 50%,
+        var(--glow-pink) 0%,
+        var(--glow-gold) 25%,
+        var(--glow-green) 50%,
+        var(--glow-blue) 75%,
+        var(--glow-pink) 100%
+      );
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 0;
+    }
+    .glow-card:hover::before {
+      opacity: 0.7;
+    }
+    .glow-card-inner {
+      position: relative;
+      z-index: 1;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    /* ===== Express Card ===== */
+    .express-gradient {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(16,185,129,0.12) 0%, transparent 60%);
+      pointer-events: none;
+      border-radius: var(--radius);
+      z-index: 1;
+    }
+    .express-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      position: relative;
+      z-index: 2;
+    }
+    .express-title { font-size: 17px; font-weight: 600; }
+    .express-badges { display: flex; gap: 8px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-emerald {
+      background: var(--emerald-dim);
+      color: var(--emerald);
+      border: 1px solid var(--emerald-border);
+    }
+    .badge-emerald-solid {
+      background: var(--emerald);
+      color: #fff;
+      border: none;
+    }
+    .badge-yellow {
+      background: var(--yellow-dim);
+      color: var(--yellow);
+      border: 1px solid var(--yellow-border);
+    }
+    .badge-red {
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid var(--red-border);
+    }
+
+    .express-body {
+      padding: 0 20px 16px;
+      position: relative;
+      z-index: 2;
+    }
+    .express-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+    }
+    .express-row + .express-row {
+      border-top: 1px solid var(--card-border);
+    }
+    .express-match-info { flex: 1; min-width: 0; }
+    .express-league {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .express-teams {
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .express-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: 12px;
+      flex-shrink: 0;
+    }
+    .express-pred-label { font-size: 11px; color: var(--text-muted); text-align: right; }
+    .express-odds {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--emerald);
+      text-align: right;
+    }
+
+    /* ===== Match List ===== */
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .league-group { margin-bottom: 24px; }
+    .league-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 0 4px;
+      margin-bottom: 8px;
+    }
+    .match-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .match-card-content {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .glow-card:hover .match-card-content {
+      transform: scale(1.005);
+    }
+    .match-time {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: var(--text-muted);
+      width: 48px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .match-teams { flex: 1; min-width: 0; }
+    .match-home {
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .match-away {
+      font-size: 14px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .match-odds {
+      display: grid;
+      grid-template-columns: repeat(3, 48px);
+      gap: 4px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .odd-label { font-size: 10px; color: var(--text-muted); }
+    .odd-value { font-family: 'Courier New', monospace; font-size: 12px; }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 640px) {
+      .hero-content { padding: 24px 16px; }
+      .hero-title { font-size: 1.6rem; }
+      .match-odds { display: none; }
+      .express-right { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <a href="#" class="logo">
+        <div class="logo-icon">MX</div>
+        <span class="logo-text">MultiXBet</span>
+      </a>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- Hero with Shader Background -->
+    <section class="hero">
+      <div id="shader-canvas"></div>
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <h1 class="hero-title">Прогнозы на сегодня</h1>
+        <p class="hero-subtitle">AI-анализ на основе Glicko 2 и xG. Автоматический подбор лучших событий.</p>
+
+        <!-- Express Card -->
+        <div class="glow-card" id="express-glow">
+          <div class="glow-card-inner">
+            <div class="express-gradient"></div>
+            <div class="express-header">
+              <span class="express-title">Экспресс дня</span>
+              <div class="express-badges">
+                <span class="badge badge-emerald">5 событий</span>
+                <span class="badge badge-emerald-solid">x12.45</span>
+              </div>
+            </div>
+            <div class="express-body">
+
+              <div class="express-row">
+                <div class="express-match-info">
+                  <div class="express-league">Premier League <span>20:00</span></div>
+                  <div class="express-teams">Arsenal — Chelsea</div>
+                </div>
+                <div class="express-right">
+                  <div>
+                    <div class="express-pred-label">Победа хозяев</div>
+                    <div class="express-odds">1.85</div>
+                  </div>
+                  <span class="badge badge-emerald">72%</span>
+                </div>
+              </div>
+
+              <div class="express-row">
+                <div class="express-match-info">
+                  <div class="express-league">La Liga <span>21:30</span></div>
+                  <div class="express-teams">Real Madrid — Atletico Madrid</div>
+                </div>
+                <div class="express-right">
+                  <div>
+                    <div class="express-pred-label">Победа хозяев</div>
+                    <div class="express-odds">1.65</div>
+                  </div>
+                  <span class="badge badge-emerald">76%</span>
+                </div>
+              </div>
+
+              <div class="express-row">
+                <div class="express-match-info">
+                  <div class="express-league">Bundesliga <span>19:30</span></div>
+                  <div class="express-teams">Bayern Munich — Dortmund</div>
+                </div>
+                <div class="express-right">
+                  <div>
+                    <div class="express-pred-label">Победа хозяев</div>
+                    <div class="express-odds">1.55</div>
+                  </div>
+                  <span class="badge badge-emerald">79%</span>
+                </div>
+              </div>
+
+              <div class="express-row">
+                <div class="express-match-info">
+                  <div class="express-league">Serie A <span>20:45</span></div>
+                  <div class="express-teams">Inter Milan — Napoli</div>
+                </div>
+                <div class="express-right">
+                  <div>
+                    <div class="express-pred-label">Победа хозяев</div>
+                    <div class="express-odds">1.90</div>
+                  </div>
+                  <span class="badge badge-yellow">64%</span>
+                </div>
+              </div>
+
+              <div class="express-row">
+                <div class="express-match-info">
+                  <div class="express-league">Ligue 1 <span>21:00</span></div>
+                  <div class="express-teams">PSG — Lyon</div>
+                </div>
+                <div class="express-right">
+                  <div>
+                    <div class="express-pred-label">Победа хозяев</div>
+                    <div class="express-odds">1.40</div>
+                  </div>
+                  <span class="badge badge-emerald">82%</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Match List -->
+    <h2 class="section-title">Все матчи</h2>
+
+    <!-- Premier League -->
+    <div class="league-group">
+      <div class="league-name">England — Premier League</div>
+      <div class="match-list">
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">15:00</div>
+              <div class="match-teams">
+                <div class="match-home">Manchester City</div>
+                <div class="match-away">Liverpool</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">2.10</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">3.40</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">3.20</div></div>
+              </div>
+              <span class="badge badge-yellow">58%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">17:30</div>
+              <div class="match-teams">
+                <div class="match-home">Tottenham</div>
+                <div class="match-away">Newcastle</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">2.30</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">3.50</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">2.90</div></div>
+              </div>
+              <span class="badge badge-yellow">55%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">20:00</div>
+              <div class="match-teams">
+                <div class="match-home">Arsenal</div>
+                <div class="match-away">Chelsea</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">1.85</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">3.60</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">4.00</div></div>
+              </div>
+              <span class="badge badge-emerald">72%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- La Liga -->
+    <div class="league-group">
+      <div class="league-name">Spain — La Liga</div>
+      <div class="match-list">
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">19:00</div>
+              <div class="match-teams">
+                <div class="match-home">Barcelona</div>
+                <div class="match-away">Sevilla</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">1.45</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">4.50</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">6.50</div></div>
+              </div>
+              <span class="badge badge-emerald">80%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">21:30</div>
+              <div class="match-teams">
+                <div class="match-home">Real Madrid</div>
+                <div class="match-away">Atletico Madrid</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">1.65</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">3.80</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">5.00</div></div>
+              </div>
+              <span class="badge badge-emerald">76%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Bundesliga -->
+    <div class="league-group">
+      <div class="league-name">Germany — Bundesliga</div>
+      <div class="match-list">
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">19:30</div>
+              <div class="match-teams">
+                <div class="match-home">Bayern Munich</div>
+                <div class="match-away">Borussia Dortmund</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">1.55</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">4.20</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">5.50</div></div>
+              </div>
+              <span class="badge badge-emerald">79%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">17:30</div>
+              <div class="match-teams">
+                <div class="match-home">RB Leipzig</div>
+                <div class="match-away">Bayer Leverkusen</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">2.50</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">3.30</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">2.70</div></div>
+              </div>
+              <span class="badge badge-red">52%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Serie A -->
+    <div class="league-group">
+      <div class="league-name">Italy — Serie A</div>
+      <div class="match-list">
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">20:45</div>
+              <div class="match-teams">
+                <div class="match-home">Inter Milan</div>
+                <div class="match-away">Napoli</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">1.90</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">3.50</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">3.80</div></div>
+              </div>
+              <span class="badge badge-yellow">64%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="glow-card">
+          <div class="glow-card-inner">
+            <div class="match-card-content">
+              <div class="match-time">18:00</div>
+              <div class="match-teams">
+                <div class="match-home">Juventus</div>
+                <div class="match-away">AC Milan</div>
+              </div>
+              <div class="match-odds">
+                <div><div class="odd-label">1</div><div class="odd-value">2.20</div></div>
+                <div><div class="odd-label">X</div><div class="odd-value">3.20</div></div>
+                <div><div class="odd-label">2</div><div class="odd-value">3.10</div></div>
+              </div>
+              <span class="badge badge-yellow">56%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ===== Shader Background =====
+    (function() {
+      const container = document.getElementById('shader-canvas');
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+
+      const rect = container.getBoundingClientRect();
+      renderer.setSize(rect.width, rect.height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(renderer.domElement);
+
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          iTime: { value: 0 },
+          iResolution: { value: new THREE.Vector2(rect.width, rect.height) }
+        },
+        vertexShader: 'void main(){gl_Position=vec4(position,1.0);}',
+        fragmentShader: `
+          uniform float iTime;
+          uniform vec2 iResolution;
+          #define NUM_OCTAVES 3
+          float rand(vec2 n){return fract(sin(dot(n,vec2(12.9898,4.1414)))*43758.5453);}
+          float noise(vec2 p){
+            vec2 ip=floor(p);vec2 u=fract(p);u=u*u*(3.0-2.0*u);
+            float res=mix(mix(rand(ip),rand(ip+vec2(1.0,0.0)),u.x),
+              mix(rand(ip+vec2(0.0,1.0)),rand(ip+vec2(1.0,1.0)),u.x),u.y);
+            return res*res;
+          }
+          float fbm(vec2 x){
+            float v=0.0;float a=0.3;vec2 shift=vec2(100);
+            mat2 rot=mat2(cos(0.5),sin(0.5),-sin(0.5),cos(0.5));
+            for(int i=0;i<NUM_OCTAVES;++i){v+=a*noise(x);x=rot*x*2.0+shift;a*=0.4;}
+            return v;
+          }
+          void main(){
+            vec2 shake=vec2(sin(iTime*1.2)*0.005,cos(iTime*2.1)*0.005);
+            vec2 p=((gl_FragCoord.xy+shake*iResolution.xy)-iResolution.xy*0.5)/iResolution.y*mat2(6.0,-4.0,4.0,6.0);
+            vec2 v;vec4 o=vec4(0.0);
+            float f=2.0+fbm(p+vec2(iTime*5.0,0.0))*0.5;
+            for(float i=0.0;i<35.0;i++){
+              v=p+cos(i*i+(iTime+p.x*0.08)*0.025+i*vec2(13.0,11.0))*3.5
+                +vec2(sin(iTime*3.0+i)*0.003,cos(iTime*3.5-i)*0.003);
+              float tailNoise=fbm(v+vec2(iTime*0.5,i))*0.3*(1.0-(i/35.0));
+              vec4 ac=vec4(0.05+0.2*sin(i*0.2+iTime*0.4),0.25+0.4*cos(i*0.3+iTime*0.5),
+                0.5+0.3*sin(i*0.4+iTime*0.3),1.0);
+              vec4 cc=ac*exp(sin(i*i+iTime*0.8))/length(max(v,vec2(v.x*f*0.015,v.y*1.5)));
+              float tf=smoothstep(0.0,1.0,i/35.0)*0.6;
+              o+=cc*(1.0+tailNoise*0.8)*tf;
+            }
+            o=tanh(pow(o/100.0,vec4(1.6)));
+            gl_FragColor=o*1.2;
+          }
+        `
+      });
+
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      const mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+
+      function animate() {
+        material.uniforms.iTime.value += 0.016;
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+      animate();
+
+      window.addEventListener('resize', function() {
+        const r = container.getBoundingClientRect();
+        renderer.setSize(r.width, r.height);
+        material.uniforms.iResolution.value.set(r.width, r.height);
+      });
+    })();
+
+    // ===== Glowing Effect =====
+    (function() {
+      const cards = document.querySelectorAll('.glow-card');
+      let mouseX = 0, mouseY = 0;
+
+      document.addEventListener('pointermove', function(e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+
+        cards.forEach(function(card) {
+          const rect = card.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const proximity = 80;
+
+          const isNear =
+            mouseX > rect.left - proximity &&
+            mouseX < rect.right + proximity &&
+            mouseY > rect.top - proximity &&
+            mouseY < rect.bottom + proximity;
+
+          if (isNear) {
+            const angle = Math.atan2(mouseY - cy, mouseX - cx) * (180 / Math.PI) + 90;
+            card.style.setProperty('--glow-angle', angle + 'deg');
+            card.classList.add('glow-active');
+          } else {
+            card.classList.remove('glow-active');
+          }
+        });
+      });
+
+      // Add active glow styles
+      const style = document.createElement('style');
+      style.textContent = `
+        .glow-card.glow-active::before { opacity: 0.7 !important; }
+      `;
+      document.head.appendChild(style);
+    })();
+  </script>
+
+</body>
+</html>
